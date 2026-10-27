@@ -57,6 +57,7 @@ No ORM, state, AI SDK, auth, chart or icon library (charts are inline SVG; icons
 | `GEMINI_MODEL`        | No              | Pin one model (default: try `gemini-2.5-flash-lite`, then `gemini-3.5-flash-lite`) |
 | `GOOGLE_MAPS_API_KEY` | For address search | Google Cloud key with **Places API (New)** enabled and **billing on**; restrict it to that API. Server-side only |
 | `APP_URL`             | No              | Origin for reset links (default: the request's origin)              |
+| `DATABASE_CA_CERT`    | When the URL has `ssl-mode=REQUIRED` (e.g. Aiven) | The provider's CA certificate (PEM). `lib/db.ts` turns `ssl-mode` into a verified TLS connection; missing → a clear startup error |
 | `TEST_DATABASE_URL`   | No              | A separate database for `npm test` (default: `DATABASE_URL` with throwaway `@example.com` accounts) |
 
 ## Folder structure

@@ -7,6 +7,11 @@ Read the root `CLAUDE.md` first. Routes are in `app/api/CLAUDE.md`.
 - **`db.ts`:** the **only** database access: the mysql2 pool and every query. It's server-only.
   - The pool is cached on `globalThis` for dev hot reload.
   - Pool options: `decimalNumbers`, `dateStrings`, `timezone: "Z"`.
+  - **TLS for hosted MySQL:** `ssl-mode=REQUIRED|VERIFY_CA|VERIFY_IDENTITY` in `DATABASE_URL` (Aiven
+    adds it) is removed from the URL (mysql2 doesn't know it) and becomes
+    `ssl: { ca: DATABASE_CA_CERT, rejectUnauthorized: true }`. Without `DATABASE_CA_CERT` it throws a
+    clear error. A URL without `ssl-mode` (local MySQL) connects without TLS, as before. Never set
+    `rejectUnauthorized: false`.
 - **`db-migrate.ts`:** runs `db/migrations/NNN_*.sql` once each, recorded in `schema_migrations`.
 - **`auth.ts`:** scrypt passwords, sessions, `requireUser` with renewal, throttles, the device cookie.
 - **`account.ts`:** field rules and limits, BMI, `HOME_PATH`, `safeNextPath`.

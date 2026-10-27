@@ -32,6 +32,9 @@ export const DEFAULT_SETTINGS: Settings = { calorieGoal: 2000 };
 // Connection, migrations, helpers
 // ---------------------------------------------------------------------------------------------
 
+// `ssl-mode` values (MySQL client style) that require an encrypted, verified connection.
+const TLS_SSL_MODES = new Set(["REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY"]);
+
 function createPool(): Pool {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) {
@@ -39,13 +42,31 @@ function createPool(): Pool {
       "DATABASE_URL is not set. Add DATABASE_URL=mysql://user:password@127.0.0.1:3306/plate_and_pace to .env and restart.",
     );
   }
+  // Hosted MySQL (e.g. Aiven) adds `?ssl-mode=REQUIRED`. mysql2 doesn't understand that option, so
+  // remove it from the URL and turn it into mysql2's `ssl` setting instead. A local URL without it
+  // connects exactly as before (no TLS).
+  const parsed = new URL(url);
+  const sslMode = parsed.searchParams.get("ssl-mode")?.toUpperCase();
+  parsed.searchParams.delete("ssl-mode");
+  let ssl: { ca: string; rejectUnauthorized: true } | undefined;
+  if (sslMode && TLS_SSL_MODES.has(sslMode)) {
+    // The provider's CA certificate (PEM). Escaped "\n" are accepted for single-line env values.
+    const ca = process.env.DATABASE_CA_CERT?.trim().replace(/\\n/g, "\n");
+    if (!ca) {
+      throw new Error(
+        `DATABASE_URL asks for TLS (ssl-mode=${sslMode}) but DATABASE_CA_CERT is not set. Set DATABASE_CA_CERT to your database provider's CA certificate (PEM) and restart.`,
+      );
+    }
+    ssl = { ca, rejectUnauthorized: true }; // verify the server certificate against that CA
+  }
   return mysql.createPool({
-    uri: url,
+    uri: parsed.toString(),
     connectionLimit: 10,
     waitForConnections: true,
     decimalNumbers: true, // SUM() etc. come back as numbers, not strings
     dateStrings: true,
     timezone: "Z",
+    ...(ssl ? { ssl } : {}),
   });
 }
 
