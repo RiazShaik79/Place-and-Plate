@@ -1,0 +1,31 @@
+{
+  "name": "plate-and-pace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "node --env-file=.env --experimental-transform-types scripts/db-migrate.mjs",
+    "db:copy-from-sqlite": "node --env-file=.env --experimental-transform-types scripts/migrate-sqlite-to-mysql.mjs",
+    "test": "node tests/run.mjs",
+    "test:quick": "node tests/run.mjs --only unit,api",
+    "test:e2e": "node tests/run.mjs --only e2e",
+    "test:screens": "node tests/run.mjs --review"
+  },
+  "dependencies": {
+    "mysql2": "^3.24.6",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}
