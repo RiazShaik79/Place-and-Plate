@@ -59,6 +59,16 @@ No ORM, state, AI SDK, auth, chart or icon library (charts are inline SVG; icons
 | `APP_URL`             | No              | Origin for reset links (default: the request's origin)              |
 | `DATABASE_CA_CERT`    | When the URL has `ssl-mode=REQUIRED` (e.g. Aiven) | The provider's CA certificate (PEM). `lib/db.ts` turns `ssl-mode` into a verified TLS connection; missing → a clear startup error |
 | `TEST_DATABASE_URL`   | No              | A separate database for `npm test` (default: `DATABASE_URL` with throwaway `@example.com` accounts) |
+| `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` | No (hosted) | Sentry for the server / the browser (the public one is read at build time). Unset = Sentry off |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | No (hosted) | Source-map upload during the Render build only |
+| `SLOW_QUERY_MS`       | No              | Log queries slower than this (default 1000) as `slow_query` |
+| `LOG_FORMAT`          | No              | `pretty` for readable local logs; JSON lines otherwise |
+| `DEBUG_ERROR_TOKEN`   | No              | Temporary, 32+ chars: enables `/api/debug/error` for one Sentry/log test. Unset afterwards |
+
+`.env.example` lists every name. **Hosting:** Render (Free web service, auto-deploys `main`, health
+check `/api/health`) with MySQL on Aiven. **CI:** `.github/workflows/ci.yml` runs typecheck +
+`test:quick` against a MySQL container on every PR (`ci`, the required check) and browser tests on
+`fix/**` branches (`e2e`).
 
 ## Folder structure
 
@@ -86,8 +96,13 @@ docs/         Decision logs        PLAN.md   Built / improved / roadmap
 
 ## Conventions
 
-- Every API route except `/api/auth/*` starts with `requireUser()` and scopes by `user.id`; pages use
-  `getCurrentUser()` + `redirect()`. Errors return `{ error, field }`, shown under that field.
+- Every API route except `/api/auth/*` and `/api/health` starts with `requireUser()` and scopes by
+  `user.id`; pages use `getCurrentUser()` + `redirect()`. Errors return `{ error, field }`, shown under
+  that field.
+- Server logs go through `log` (`lib/log.ts`, one JSON line each); unhandled server errors are logged
+  and sent to Sentry by `instrumentation.ts`, so routes don't need try/catch for that. Never log
+  passwords, tokens, query parameters or request bodies. Keep `lib/mailer.ts`'s console format: the
+  tests read emailed links from it.
 - Client calls use `apiFetch` (401 → sign-in). Sign-out flushes pending Undo deletes first.
 - Catalogue items: the server computes values. AI and Places results: the user confirms, the server
   range-checks. Repeats and edits copy/rescale stored rows; the client never sends nutrition numbers.
@@ -117,11 +132,11 @@ docs/         Decision logs        PLAN.md   Built / improved / roadmap
 
 ## Next Steps
 
-- **Deploy to Vercel.** Hosted MySQL in `DATABASE_URL` + `npm run db:migrate`; set the API keys and
-  `APP_URL`; a mail provider in `lib/mailer.ts`; throttles in Redis; add auth hardening as needed.
+- **Hosting follow-ups (Render + Aiven, deployed).** A real mail provider in `lib/mailer.ts` (reset
+  and verification links currently land in Render's logs); throttles in Redis; auth hardening as needed.
 - **Food history charts.** Custom date range, per-meal / per-food breakdowns, CSV export.
 - **User preferences.** Macro split, units (kcal/kJ, kg/lb), meal names, eat-back exercise, dark mode.
 - **Barcode scanning.** `BarcodeDetector` where available + Open Food Facts lookup.
 - Also queued: steps estimated from walks; custom foods; step sync (Apple Health, Google Fit);
-  editing past weigh-ins; sleep insights (bedtime consistency, sleep vs next-day intake); CI for
-  `npm test`; timestamps as `DATETIME`.
+  editing past weigh-ins; sleep insights (bedtime consistency, sleep vs next-day intake); browser
+  tests on every PR in CI; timestamps as `DATETIME`.

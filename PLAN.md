@@ -123,6 +123,16 @@ On 2026-10-16:
    - **Account:** a sleep target.
    - See `docs/2026-10-17-sleep-tracking.md`.
 
+On 2026-10-29:
+
+15. **Monitoring readiness** (for the Watchtower incident monitor):
+   - **`GET /api/health`:** a database check for Render's health check and Watchtower.
+   - **Structured JSON logs** (`lib/log.ts`): unhandled errors, DB failures and slow queries.
+   - **Sentry:** server, browser and render errors, scrubbed. It's off until the DSN is set.
+   - **CI** (`.github/workflows/ci.yml`): typecheck and `test:quick` with MySQL on every PR, and browser tests for `fix/**`.
+   - **Security:** `next` 16.4.3, which fixes two critical RCE advisories.
+   - See `docs/2026-10-29-watchtower-readiness.md`.
+
 ## What We Improved
 
 **Round one: the tracker** (three rounds, see `docs/2026-10-14-ralph-design-polish.md`)
@@ -247,7 +257,7 @@ On 2026-10-16:
 
 | Priority | Item | Notes |
 | -------- | ---- | ----- |
-| 1 | Deploy to Vercel | Point `DATABASE_URL` at a hosted MySQL (PlanetScale, Aiven, RDS), run `db:migrate`; set `GEMINI_API_KEY`, `GOOGLE_MAPS_API_KEY`, `APP_URL`; Redis for throttles |
+| 1 | Hosting hardening | Done: deployed on Render (Free) with MySQL on Aiven, health check, JSON logs, Sentry. Still open: Redis for throttles (they're in memory) |
 | 2 | Real email delivery | Reset and verification are built; swap the console in `lib/mailer.ts` for a provider (Resend, Postmark, SES) |
 | 3 | More history (food history charts) | The dashboard is built; add a custom date range, per-meal and per-food breakdowns, weight over time, CSV export |
 | 4 | User preferences | Custom macro split, units (kcal/kJ, kg/lb), meal names, opt-in "add exercise back to budget", dark mode |
@@ -256,4 +266,4 @@ On 2026-10-16:
 | 7 | Editing | Done: servings/meal on logged entries. Still open: edit AI items before logging, move an entry to another day |
 | 8 | Account management | Delete account + export data; list "signed-in devices" and sign them out individually |
 | 9 | Custom foods and activities | User-defined items, searchable alongside the catalogues |
-| 10 | Tests | Done: `npm test` (unit, API, browser). Still open: run it in CI on every push, mutation checks |
+| 10 | Tests | Done: `npm test` (unit, API, browser); CI runs typecheck + `test:quick` on every PR. Still open: browser tests on every PR, mutation checks |
