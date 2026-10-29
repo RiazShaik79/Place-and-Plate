@@ -12,6 +12,15 @@ Read the root `CLAUDE.md` first. Routes are in `app/api/CLAUDE.md`.
     `ssl: { ca: DATABASE_CA_CERT, rejectUnauthorized: true }`. Without `DATABASE_CA_CERT` it throws a
     clear error. A URL without `ssl-mode` (local MySQL) connects without TLS, as before. Never set
     `rejectUnauthorized: false`.
+  - **Logging:** every `query`/`exec` is timed. Over `SLOW_QUERY_MS` (default 1000) logs `slow_query`;
+    a failure logs `db_query_failed` (except `ER_DUP_ENTRY`, an expected outcome); a failed startup
+    logs `db_connect_failed`. Only the first 200 chars of the SQL text: **never the parameters**.
+  - **`pingDb(timeoutMs)`:** `SELECT 1` raced against a timeout, for `/api/health`.
+- **`log.ts`:** structured logs, one JSON line each (`ts`, `level`, `msg`, fields; `err` serialised).
+  `formatLog` is pure (unit-tested). `LOG_FORMAT=pretty` for readable local output.
+- **`sentry-scrub.ts`:** pure scrubbing used by every Sentry config (`beforeSend`/`beforeBreadcrumb`):
+  masks emails, `token=` values, DB URLs and PEM blocks, strips cookies, bodies and secret headers,
+  and drops the console mailer's breadcrumbs. `SENTRY_DATA_COLLECTION` is the shared `dataCollection`.
 - **`db-migrate.ts`:** runs `db/migrations/NNN_*.sql` once each, recorded in `schema_migrations`.
 - **`auth.ts`:** scrypt passwords, sessions, `requireUser` with renewal, throttles, the device cookie.
 - **`account.ts`:** field rules and limits, BMI, `HOME_PATH`, `safeNextPath`.

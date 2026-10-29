@@ -1,0 +1,87 @@
+# CI: typecheck + unit and API tests against a throwaway MySQL on every PR and push to main.
+# Browser tests (e2e) run for fix/** branches (Watchtower incident fixes) and on manual dispatch.
+# No real keys here: Gemini, Places and Sentry stay unset, so nothing spends quota or reports.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: mysql://root:ci@127.0.0.1:3306/plate_and_pace_test
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: plate_and_pace_test
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run test:quick
+      - name: Upload the test server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log-ci
+          path: tests/.output/server.log
+          if-no-files-found: ignore
+
+  e2e:
+    name: e2e
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'fix/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci
+          MYSQL_DATABASE: plate_and_pace_test
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test -- --only e2e
+      - name: Upload screenshots and server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-output
+          path: tests/.output/
+          if-no-files-found: ignore

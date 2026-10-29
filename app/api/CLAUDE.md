@@ -6,7 +6,9 @@ Read the root `CLAUDE.md` first. The data behind these routes is in `lib/CLAUDE.
 
 - **Exports:** a route file exports only HTTP handlers and `dynamic`. Helpers stay unexported in the
   file, and shared constants go in `lib/`.
-- **Every handler** except `/api/auth/*`:
+- **Errors:** don't wrap handlers in try/catch just to log. `instrumentation.ts` logs every unhandled
+  error as `request_failed` (JSON, `lib/log.ts`) and sends it to Sentry.
+- **Every handler** except `/api/auth/*` and `/api/health`:
   - starts with `const user = await requireUser(); if (user instanceof NextResponse) return user;`
   - scopes every query by `user.id`
   - another account's ids behave as "not found" (404)
@@ -23,6 +25,11 @@ Read the root `CLAUDE.md` first. The data behind these routes is in `lib/CLAUDE.
 
 ## Routes
 
+- **Health:** `GET /api/health` (no sign-in, never cached) → 200 `{ status: "ok", db: "up", db_ms,
+  version, uptime_s }` or 503 `{ status: "degraded", db: "down", code }`. It's Render's health check
+  path and what Watchtower polls. It must never return hosts, URLs or error messages.
+- **Debug (temporary):** `GET /api/debug/error` throws one test error only when `DEBUG_ERROR_TOKEN`
+  (32+ chars) is set, `x-debug-token` matches it and the caller is signed in; otherwise 404.
 - **Auth:**
   - **POST** `/api/auth/{register,login,logout,forgot,reset,forget-device}`
   - `GET /api/auth/verify-email?token=` redirects to `/verify-email?status=…`

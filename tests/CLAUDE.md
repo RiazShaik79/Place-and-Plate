@@ -65,3 +65,12 @@ Screenshots and the server log go to `tests/.output/` (git-ignored).
 - Port 3100 free.
 - **Optional separate database:** create `plate_and_pace_test` as root, grant the app user the same
   privileges, and set `TEST_DATABASE_URL`.
+
+## CI (`.github/workflows/ci.yml`)
+
+- **`ci`** (every PR and push to `main`; the required check): MySQL 8.4 service container,
+  `npm ci`, `npm run typecheck`, `npm run test:quick`. `DATABASE_URL` points at the container; no AI,
+  Places or Sentry keys exist there.
+- **`e2e`** (branches `fix/**` and manual dispatch): `npm test -- --only e2e` with Ubuntu's
+  `/usr/bin/google-chrome`.
+- On failure, `tests/.output/` (server log, screenshots) is uploaded as an artifact.

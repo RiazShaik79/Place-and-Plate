@@ -2,6 +2,7 @@
 // Dates stay 'YYYY-MM-DD' strings and timestamps ISO-8601 UTC strings, as they were in SQLite.
 import mysql, { type Pool, type PoolConnection, type ResultSetHeader } from "mysql2/promise";
 import { migrate } from "./db-migrate";
+import { log } from "./log";
 import { DAILY_WATER_MAX } from "./account";
 import { FOOD_KEY_SQL, foodKey } from "./foods";
 import { isActivity, isSex, type WeighIn } from "./goals";
@@ -78,10 +79,11 @@ function ready(): Promise<Pool> {
   globalForDb.mysqlReady ??= (async () => {
     const pool = (globalForDb.mysqlPool ??= createPool());
     const applied = await migrate(pool);
-    if (applied.length) console.log(`Database migrations applied: ${applied.join(", ")}`);
+    if (applied.length) log.info("db_migrations_applied", { names: applied });
     return pool;
   })().catch((err) => {
     globalForDb.mysqlReady = undefined; // let the next request retry (e.g. MySQL was still starting)
+    log.error("db_connect_failed", { code: (err as { code?: string })?.code, err });
     throw err;
   });
   return globalForDb.mysqlReady;
@@ -90,9 +92,29 @@ function ready(): Promise<Pool> {
 type Executor = Pool | PoolConnection;
 type Param = string | number | null;
 
+// Queries slower than this are logged (SQL text only, never the parameters).
+const SLOW_QUERY_MS = Number(process.env.SLOW_QUERY_MS) || 1000;
+const sqlSnippet = (sql: string) => sql.replace(/\s+/g, " ").trim().slice(0, 200);
+
+/** Run one statement, logging slow ones and failures (the SQL text, never the values). */
+async function timed<R>(sql: string, params: Param[], ex?: Executor): Promise<R> {
+  const executor = ex ?? (await ready());
+  const started = performance.now();
+  try {
+    const [result] = await executor.query(sql, params);
+    const ms = Math.round(performance.now() - started);
+    if (ms > SLOW_QUERY_MS) log.warn("slow_query", { ms, sql: sqlSnippet(sql) });
+    return result as R;
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    // A duplicate key is an expected outcome callers handle (isDuplicate), not a failure.
+    if (code !== "ER_DUP_ENTRY") log.error("db_query_failed", { code, sql: sqlSnippet(sql), err });
+    throw err;
+  }
+}
+
 async function query<T>(sql: string, params: Param[] = [], ex?: Executor): Promise<T[]> {
-  const [rows] = await (ex ?? (await ready())).query(sql, params);
-  return rows as T[];
+  return timed<T[]>(sql, params, ex);
 }
 
 async function one<T>(sql: string, params: Param[] = [], ex?: Executor): Promise<T | null> {
@@ -100,8 +122,24 @@ async function one<T>(sql: string, params: Param[] = [], ex?: Executor): Promise
 }
 
 async function exec(sql: string, params: Param[] = [], ex?: Executor): Promise<ResultSetHeader> {
-  const [result] = await (ex ?? (await ready())).query(sql, params);
-  return result as ResultSetHeader;
+  return timed<ResultSetHeader>(sql, params, ex);
+}
+
+/** Health check: SELECT 1 within `timeoutMs` (includes connecting and pending migrations). */
+export async function pingDb(timeoutMs: number): Promise<{ ok: true; ms: number } | { ok: false; ms: number; code: string }> {
+  const started = performance.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error("Database ping timed out"), { code: "PING_TIMEOUT" })), timeoutMs);
+  });
+  try {
+    await Promise.race([query("SELECT 1"), timeout]);
+    return { ok: true, ms: Math.round(performance.now() - started) };
+  } catch (err) {
+    return { ok: false, ms: Math.round(performance.now() - started), code: String((err as { code?: string })?.code ?? "UNKNOWN") };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Run `fn` on one connection inside BEGIN/COMMIT; ROLLBACK and rethrow on any error. */
