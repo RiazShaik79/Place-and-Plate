@@ -64,6 +64,7 @@ No ORM, state, AI SDK, auth, chart or icon library (charts are inline SVG; icons
 | `SLOW_QUERY_MS`       | No              | Log queries slower than this (default 1000) as `slow_query` |
 | `LOG_FORMAT`          | No              | `pretty` for readable local logs; JSON lines otherwise |
 | `DEBUG_ERROR_TOKEN`   | No              | Temporary, 32+ chars: enables `/api/debug/error` for one Sentry/log test. Unset afterwards |
+| `CHAOS_MODE` / `CHAOS_TOKEN` | No       | Watchtower test sessions only: `enabled` + a 32+ char token turn on `/api/chaos/*` (seeded bugs). Unset afterwards |
 
 `.env.example` lists every name. **Hosting:** Render (Free web service, auto-deploys `main`, health
 check `/api/health`) with MySQL on Aiven. **CI:** `.github/workflows/ci.yml` runs typecheck +

@@ -18,6 +18,9 @@ Read the root `CLAUDE.md` first. Routes are in `app/api/CLAUDE.md`.
   - **`pingDb(timeoutMs)`:** `SELECT 1` raced against a timeout, for `/api/health`.
 - **`log.ts`:** structured logs, one JSON line each (`ts`, `level`, `msg`, fields; `err` serialised).
   `formatLog` is pure (unit-tested). `LOG_FORMAT=pretty` for readable local output.
+- **`chaos.ts`** and **`chaos-cases.ts`:** Watchtower's test scenarios. `chaos.ts` is the gate
+  (`CHAOS_MODE=enabled` + `CHAOS_TOKEN` + an allowlist; pure, unit-tested); `chaos-cases.ts` holds the
+  three deliberately seeded bugs, with `chaosServerTime` / `chaosSlowPing` in `db.ts`. No user data.
 - **`sentry-scrub.ts`:** pure scrubbing used by every Sentry config (`beforeSend`/`beforeBreadcrumb`):
   masks emails, `token=` values, DB URLs and PEM blocks, strips cookies, bodies and secret headers,
   and drops the console mailer's breadcrumbs. `SENTRY_DATA_COLLECTION` is the shared `dataCollection`.
