@@ -142,6 +142,23 @@ export async function pingDb(timeoutMs: number): Promise<{ ok: true; ms: number 
   }
 }
 
+// Chaos scenarios (lib/chaos-cases.ts, gated by lib/chaos.ts): read-only, no user data.
+
+/** bad-sql scenario: the database server's clock. */
+export async function chaosServerTime(): Promise<string | null> {
+  return (await one<{ now: string }>("SELECT NOW() AS now FROM DUAL WHERE"))?.now ?? null;
+}
+
+/** db-timeout scenario: how long a slow round trip takes, given up after 1 s. */
+export async function chaosSlowPing(): Promise<number> {
+  const started = performance.now();
+  const limit = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(Object.assign(new Error("Query timed out after 1000 ms"), { code: "QUERY_TIMEOUT" })), 1000);
+  });
+  await Promise.race([query("SELECT SLEEP(3) AS slept"), limit]);
+  return Math.round(performance.now() - started);
+}
+
 /** Run `fn` on one connection inside BEGIN/COMMIT; ROLLBACK and rethrow on any error. */
 async function transaction<T>(fn: (tx: PoolConnection) => Promise<T>): Promise<T> {
   const conn = await (await ready()).getConnection();

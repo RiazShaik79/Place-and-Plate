@@ -30,6 +30,10 @@ Read the root `CLAUDE.md` first. The data behind these routes is in `lib/CLAUDE.
   path and what Watchtower polls. It must never return hosts, URLs or error messages.
 - **Debug (temporary):** `GET /api/debug/error` throws one test error only when `DEBUG_ERROR_TOKEN`
   (32+ chars) is set, `x-debug-token` matches it and the caller is signed in; otherwise 404.
+- **Chaos (Watchtower tests):** `GET /api/chaos/[scenario]` runs one deliberately seeded bug from
+  `lib/chaos-cases.ts` (`null-handling`, `bad-sql`, `db-timeout`), which fails with a 500. Only when
+  `CHAOS_MODE=enabled`, `x-chaos-token` matches `CHAOS_TOKEN` (32+ chars) and the scenario is listed
+  (`lib/chaos.ts`); otherwise 404. While on, it logs `CHAOS MODE ENABLED` and `/api/health` adds `chaos: true`.
 - **Auth:**
   - **POST** `/api/auth/{register,login,logout,forgot,reset,forget-device}`
   - `GET /api/auth/verify-email?token=` redirects to `/verify-email?status=…`

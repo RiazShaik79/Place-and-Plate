@@ -1,5 +1,5 @@
-// Health and debug routes: /api/health reports the DB without leaking anything; /api/debug/error
-// stays a 404 unless DEBUG_ERROR_TOKEN is configured (it never is in tests).
+// Health, debug and chaos routes: /api/health reports the DB without leaking anything; /api/debug/error
+// and /api/chaos/* stay 404s unless DEBUG_ERROR_TOKEN / CHAOS_MODE are configured (never in tests).
 import { check, suite } from "../helpers/checks.mjs";
 
 suite("Health: DB check, no caching, no leaks; debug route is off", async () => {
@@ -29,4 +29,10 @@ suite("Health: DB check, no caching, no leaks; debug route is off", async () => 
   check("debug route → 404 when DEBUG_ERROR_TOKEN is unset (anonymous)", anon.status === 404, `got ${anon.status}`);
   const signedIn = await fetch(`${BASE}/api/debug/error`, { headers: { Cookie: cookie, "x-debug-token": "x".repeat(40) } });
   check("debug route → 404 when DEBUG_ERROR_TOKEN is unset (signed in)", signedIn.status === 404, `got ${signedIn.status}`);
+
+  check("health has no chaos flag when CHAOS_MODE is unset", json && !("chaos" in json), text);
+  for (const scenario of ["null-handling", "bad-sql", "db-timeout", "unknown"]) {
+    const chaos = await fetch(`${BASE}/api/chaos/${scenario}`, { headers: { "x-chaos-token": "x".repeat(40) } });
+    check(`chaos route → 404 when CHAOS_MODE is unset (${scenario})`, chaos.status === 404, `got ${chaos.status}`);
+  }
 });
